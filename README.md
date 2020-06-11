@@ -17,4 +17,4 @@ The container image repository is an exception and "master" branch is usually al
 
 ## How to create a new generic pipeline
 
-The process of creating a new generic pipeline is described in a separate document. You can find it [here](./docs/how_to_create_pipeline).
+The process of creating a new generic pipeline is described in a separate document. You can find it [here](./docs/how_to_create_pipeline.md).
