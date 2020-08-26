@@ -1,0 +1,284 @@
+= Development guide for Fedora CI Jenkins pipelines
+
+:toc:
+
+== Environment
+
+=== System
+
+Default image is based on latest released Fedora contaner image `fedora:latest`.
+
+If additional libraries or tools are required, use custom image by setting pod
+configuration in the pipeline file. See also <<custom-images,how to use custom
+images>>.
+
+=== Credentials
+
+`fedora-keytab` - kerberos keytab file for Fedora CI bot.
+
+.Usage
+[source, groovy]
+----
+stage('Some stage') {
+    environment {
+	KOJI_KEYTAB = credentials('fedora-keytab')
+    }
+
+    steps {
+	sh "klist -kt ${KOJI_KEYTAB}"
+    }
+}
+----
+
+== Naming
+
+==== N1: Use lowercase alphanumeric characters: `[a-z0-9]` and dash `-`
+
+==== N2: Use name structure <project>-<noun>-<verb>
+
+Common verbs:
+
+trigger::
+
+Lightweight, fast job, which parses incoming message and triggesr the execution
+of the another job. It should work under 1 minute and written mostly in Ruby, so
+it doesn't need to spin a custom worker.
+
+run::
+
+Runs the test/scenario. May take longer time
+
+.Table examples
+|===
+| Project | Noun | Verb 
+
+| eln
+| build
+| trigger
+
+| -
+| rpminspect
+| trigger
+
+| -
+| rpminspect
+| run
+
+| eln
+| periodic
+| -
+
+|===
+
+== Jenkinsfile
+
+=== Generic
+
+==== G1: Prefer declarative over scripted
+
+Groovy allows many ways to achieve the similar result. When choosing the
+implementation, choose the more declarative syntax whenever possible.
+
+.Example: timeout
+[source, groovy]
+----
+// Don't:
+
+pipeline {
+    timeout(time: 4, unit: 'HOURS') {
+        steps {
+        ...
+        }
+    }
+}
+
+// Do:
+
+pipeline {
+    options {
+        timeout(time: 4, unit: 'HOURS')
+    }
+    
+    steps {
+    ...
+    }
+}
+----
+
+.Example: label
+[source, groovy]
+----
+// Don't:
+
+node (labelName) {
+    pipeline {
+    ...
+    }
+}
+
+// Do
+
+pipeline {
+    agent {
+        label labelName
+    }
+
+    steps {
+    ...
+    }
+}
+----
+
+==== G2: Don't use inline scripts
+
+Put scripts in separate files, and run them as shell (`sh`) steps.
+
+In case where it can not be avoided, define script as a string variable at the
+top of the file and refer to it from stages.
+
+==== G3: Prefer Python over Bash
+
+==== G4: Use jenkins-pipeline-library
+
+Use https://github.com/fedora-ci/jenkins-pipeline-library for common functions.
+
+.Example
+[source, groovy]
+----
+@Library('fedora-pipeline-library@prototype') _
+import org.fedoraproject.jenkins.koji.Koji
+
+...
+
+script {
+    kojiBuildId = params.KOJI_BUILD_ID.toInteger()
+    def koji = new Koji()
+    build = koji.getBuildInfo(kojiBuildId)
+}
+----
+
+=== Pipeline
+
+==== P1: Follow the Groovy code style
+
+Use `npm-groovy-lint`.
+
+==== P2: Follow the order
+
+----
+. import
+. pipelineMetadata
+. podYAML
+. global variables
+. pipeline
+... agent
+... options
+... triggers
+... parameters
+... stages
+..... set initial build description
+..... process input
+..... execute scenario
+... post
+..... update build description
+..... send messages
+----
+
+=== P3: Use consistent naming for variables
+
+Some commonly used variables in the Fedora CI scope:
+
+[source, groovy]
+----
+// Fedora CI
+def kojiBuildId = params.KOJI_BUILD_ID
+def kojiTaskId = params.KOJI_TASK_ID
+def artifactId = params.ARTIFACT_ID
+def ciMessage = params.CI_MESSAGE
+
+// Infra
+def podYAML
+----
+
+=== P4: Define pipeline metadata
+
+Define `pipelineMetadata` for each pipeline. Use it to set job description.
+
+. Example
+----
+def pipelineMetadata = [
+    pipelineName: 'eln-build',
+    pipelineDescription: 'Rebuild Fedora Rawhide package in the ELN Buildroot',
+    testCategory: 'eln',
+    testType: 'build',
+    maintainer: 'Fedora CI',
+    docs: 'https://github.com/fedora-ci/eln-build-pipeline',
+    contact: [
+	irc: '#fedora-ci',
+	email: 'ci@lists.fedoraproject.org'
+    ],
+]
+----
+
+TODO: add library function to set job description.
+
+=== P5: Set job outcomes
+
+ERROR:: Job failed due to infra error or misconfiguration and requires attention
+from the owners of the pipeline. For test jobs it maps to `test.error` CI
+Message, with test outcome not known. Failed jobs will be monitored.
+
+UNSTABLE:: Job finished, but the result is negative or unexpected.  For test
+jobs it maps to `test.complete` CI message with the test outcome `failure`.
+Outcome will be reported to the requester (owner of the build).
+
+PASSED:: Job finished with the expected positive outcome.  For test jobs it maps
+to `test.complete` CI message with the test outcome `success`.
+
+=== Scripts
+
+==== S1: Use code style
+
+Use `flake8` for Python, `shellcheck` for Bash
+
+==== S2: Reduce dependencies on libraries or external services
+
+Rely on standard library (argparse, json, yaml..).
+
+If query to a certain service is not required for the action, don't do it.
+
+For example, don't query Koji for package information to create a nicer output,
+if it is enough to know the name of the package, provided via input variable.
+
+==== S3: Support local execution
+
+Support running test scripts from a local environment (container) without
+presence of Jenkins infrastructure.
+
+==== S4: Add dry-run option
+
+If script performs destructive action (for example, tags build), provide
+a cli option for dry run.
+
+==== S5: Use logging
+
+==== S6: Pass variables explicitly
+
+Don't pass rely on environment variables in scripts, rather make them
+into explicit options.
+
+If variables can not be avoided, list all used variables at the top of
+the script describing their purpose.
+
+== How to
+
+=== Use custom container image
+[[custom-images]]
+
+=== Set build description
+
+=== Use credentials
+
+=== Listen to Message Bus
+
+=== Send to Message Bus
