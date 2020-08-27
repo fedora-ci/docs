@@ -12,6 +12,12 @@ If additional libraries or tools are required, use custom image by setting pod
 configuration in the pipeline file. See also <<custom-images,how to use custom
 images>>.
 
+=== Before start
+
+Please, read following articles:
+- https://www.jenkins.io/doc/book/pipeline/pipeline-best-practices/[Pipeline Best Practices]
+- https://www.jenkins.io/doc/book/pipeline/cps-method-mismatches/[Pipeline CPS Method Mismatches]
+
 === Credentials
 
 `fedora-keytab` - kerberos keytab file for Fedora CI bot.
