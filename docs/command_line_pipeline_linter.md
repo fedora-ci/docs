@@ -10,5 +10,5 @@ For example:
 MY_JENKINSFILE=validated_jenkinsfile
 MY_JENKINS_URL=https://my-jenkins-project.org
 
-curl -H "Authorization: OAuth " -X POST -F "jenkinsfile=<$MY_JENKINSFILE" $MY_JENKINS_URL/pipeline-model-converter/validate
+curl -X POST -F "jenkinsfile=<$MY_JENKINSFILE" $MY_JENKINS_URL/pipeline-model-converter/validate
 ```
